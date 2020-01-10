@@ -1,6 +1,7 @@
 import * as cdk from '@aws-cdk/core';
 import { AccountPrincipal, AccountRootPrincipal, Anyone, ArnPrincipal, CanonicalUserPrincipal,
   FederatedPrincipal, IPrincipal, ServicePrincipal, ServicePrincipalOpts } from './principals';
+import { normalizePolicyField, normalizePolicyPrincipal, noUndefined } from './private/policy-language';
 import { mergePrincipal } from './util';
 
 /**
@@ -187,64 +188,17 @@ export class PolicyStatement {
   }
 
   public toStatementJson(): any {
-    return noUndef({
-      Action: _norm(this.action),
-      NotAction: _norm(this.notAction),
-      Condition: _norm(this.condition),
-      Effect: _norm(this.effect),
-      Principal: _normPrincipal(this.principal),
-      NotPrincipal: _normPrincipal(this.notPrincipal),
-      Resource: _norm(this.resource),
-      NotResource: _norm(this.notResource),
-      Sid: _norm(this.sid),
+    return noUndefined({
+      Action: normalizePolicyField(this.action),
+      NotAction: normalizePolicyField(this.notAction),
+      Condition: normalizePolicyField(this.condition),
+      Effect: normalizePolicyField(this.effect),
+      Principal: normalizePolicyPrincipal(this.principal),
+      NotPrincipal: normalizePolicyPrincipal(this.notPrincipal),
+      Resource: normalizePolicyField(this.resource),
+      NotResource: normalizePolicyField(this.notResource),
+      Sid: normalizePolicyField(this.sid),
     });
-
-    function _norm(values: any) {
-
-      if (typeof(values) === 'undefined') {
-        return undefined;
-      }
-
-      if (cdk.Token.isUnresolved(values)) {
-        return values;
-      }
-
-      if (Array.isArray(values)) {
-        if (!values || values.length === 0) {
-          return undefined;
-        }
-
-        if (values.length === 1) {
-          return values[0];
-        }
-
-        return values;
-      }
-
-      if (typeof(values) === 'object') {
-        if (Object.keys(values).length === 0) {
-          return undefined;
-        }
-      }
-
-      return values;
-    }
-
-    function _normPrincipal(principal: { [key: string]: any[] }) {
-      const keys = Object.keys(principal);
-      if (keys.length === 0) { return undefined; }
-      const result: any = {};
-      for (const key of keys) {
-        const normVal = _norm(principal[key]);
-        if (normVal) {
-          result[key] = normVal;
-        }
-      }
-      if (Object.keys(result).length === 1 && result.AWS === '*') {
-        return '*';
-      }
-      return result;
-    }
   }
 
   public toString() {
@@ -327,14 +281,4 @@ export interface PolicyStatementProps {
    * @default - allow
    */
   readonly effect?: Effect;
-}
-
-function noUndef(x: any): any {
-  const ret: any = {};
-  for (const [key, value] of Object.entries(x)) {
-    if (value !== undefined) {
-      ret[key] = value;
-    }
-  }
-  return ret;
 }
